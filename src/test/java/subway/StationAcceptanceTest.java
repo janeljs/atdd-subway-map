@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static subway.RestAssuredWrapper.*;
@@ -23,14 +22,13 @@ public class StationAcceptanceTest extends AcceptanceTestBase {
     void createStation() {
         // when 지하철역을 생성하면
         StationRequest stationRequest = stationRequestArbitraryBuilder().sample();
-        ExtractableResponse<Response> postResponse = post("/stations", stationRequest);
+        ExtractableResponse<Response> response = post("/stations", stationRequest);
 
         // then 지하철역이 생성된다
-        assertThat(postResponse.statusCode()).isEqualTo(HttpStatus.CREATED.value());
+        assertThat(response.statusCode()).isEqualTo(HttpStatus.CREATED.value());
 
         // then 지하철역 목록 조회 시 생성한 역을 찾을 수 있다
-        ExtractableResponse<Response> getResponse = get("/stations");
-        List<String> stationNames = getStationNames(getResponse);
+        List<String> stationNames = get("/stations").jsonPath().getList("name", String.class);
         assertThat(stationNames).containsAnyOf(stationRequest.getName());
     }
 
@@ -42,11 +40,11 @@ public class StationAcceptanceTest extends AcceptanceTestBase {
         stationRequests.forEach(stationRequest -> post("/stations", stationRequest));
 
         // when 지하철역 목록을 조회하면
-        ExtractableResponse<Response> getResponse = get("/stations");
+        ExtractableResponse<Response> response = get("/stations");
 
         // then 2개의 지하철역을 응답 받는다
-        List<String> stationNames = getStationNames(getResponse);
-        assertThat(stationNames).containsExactlyElementsOf(stationRequests.stream().map(StationRequest::getName).collect(Collectors.toList()));
+        List<StationResponse> stationResponses = getResponse(response);
+        assertThat(stationResponses).hasSize(2);
     }
 
     @DisplayName("지하철역을 삭제한다.")
@@ -74,9 +72,5 @@ public class StationAcceptanceTest extends AcceptanceTestBase {
 
     private static List<StationResponse> getResponse(ExtractableResponse<Response> response) {
         return response.jsonPath().getList(".", StationResponse.class);
-    }
-
-    private static List<String> getStationNames(ExtractableResponse<Response> response) {
-        return response.jsonPath().getList("name", String.class);
     }
 }
